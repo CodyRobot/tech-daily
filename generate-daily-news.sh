@@ -103,18 +103,14 @@ cat > "$DAILY_DIR/$DATE.md" << EOF
 
 ---
 
-*本报由 OpenClaw 🦞 自动整理生成*
+*🦞 龙虾日报 · 每日科技动态精选*
 EOF
 
 echo "✅ 生成 $DATE 的日报"
 
-# 更新 index.html 中的日期列表
-# 这里简单处理，实际应该用更智能的方式更新 JavaScript 数组
-
 # 提交更改
 git add -A
-git commit -m "Add daily tech news for $DATE" || echo "No changes to commit"
+git commit -m "整理 $DATE 科技动态" || echo "No changes to commit"
 http_proxy=http://127.0.0.1:8118 https_proxy=http://127.0.0.1:8118 git push
 
-echo "🚀 已推送到 GitHub"
-echo "📄 查看：https://codyrobot.github.io/tech-daily/?date=$DATE"
+echo "📄 已更新：https://codyrobot.github.io/tech-daily/?date=$DATE"
