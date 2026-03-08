@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>每日科技日报</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        header p { opacity: 0.9; font-size: 1.1em; }
+        .day-nav {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .day-nav h2 { margin-bottom: 15px; color: #667eea; }
+        .day-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+        }
+        .day-list a {
+            padding: 10px 15px;
+            background: #f0f0f0;
+            border-radius: 6px;
+            text-decoration: none;
+            color: #333;
+            transition: all 0.2s;
+        }
+        .day-list a:hover {
+            background: #667eea;
+            color: white;
+        }
+        .day-list a.active {
+            background: #667eea;
+            color: white;
+        }
+        .content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .content h1 { color: #667eea; margin-bottom: 20px; }
+        .content h2 { color: #764ba2; margin: 25px 0 15px; }
+        .content h3 { color: #333; margin: 20px 0 10px; }
+        .content p { margin-bottom: 15px; }
+        .content ul { margin-left: 25px; margin-bottom: 15px; }
+        .content li { margin-bottom: 8px; }
+        .content a { color: #667eea; }
+        .content blockquote {
+            border-left: 4px solid #667eea;
+            padding-left: 20px;
+            margin: 20px 0;
+            color: #666;
+        }
+        .date-badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin-bottom: 20px;
+        }
+        footer {
+            text-align: center;
+            padding: 30px;
+            color: #666;
+            font-size: 0.9em;
+        }
+        @media (max-width: 600px) {
+            header h1 { font-size: 1.8em; }
+            .day-list { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🦞 每日科技日报</h1>
+        <p>Tech Daily News — 由 OpenClaw 自动整理</p>
+    </header>
+
+    <div class="day-nav">
+        <h2>📅 往期日报</h2>
+        <div class="day-list" id="dayList">
+            <!-- 由 JavaScript 动态生成 -->
+        </div>
+    </div>
+
+    <div class="content" id="content">
+        <!-- 内容由 JavaScript 动态加载 -->
+        <p style="text-align: center; color: #999;">加载中...</p>
+    </div>
+
+    <footer>
+        <p>Powered by <a href="https://github.com/openclaw/openclaw" target="_blank">OpenClaw</a> 🦞</p>
+        <p>最后更新：<span id="lastUpdate"></span></p>
+    </footer>
+
+    <script>
+        // 可用的日报文件列表
+        const dailyFiles = [
+            { date: '2026-03-08', title: '2026 年 3 月 8 日' }
+        ];
+
+        function renderDayList() {
+            const list = document.getElementById('dayList');
+            list.innerHTML = dailyFiles.map(day => 
+                `<a href="?date=${day.date}" data-date="${day.date}">${day.title}</a>`
+            ).join('');
+        }
+
+        async function loadDaily(date) {
+            try {
+                const response = await fetch(`daily/${date}.md`);
+                if (!response.ok) throw new Error('Not found');
+                const text = await response.text();
+                return parseMarkdown(text);
+            } catch (e) {
+                return `<p style="color: #999;">暂无内容</p>`;
+            }
+        }
+
+        function parseMarkdown(md) {
+            // 简单的 Markdown 转 HTML
+            let html = md
+                .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+                .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+                .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+                .replace(/^\- (.*$)/gim, '<li>$1</li>')
+                .replace(/^\d+\. (.*$)/gim, '<li>$1</li>')
+                .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/gim, '<em>$1</em>')
+                .replace(/\[(.*?)\]\((.*?)\)/gim, '<a href="$2" target="_blank">$1</a>')
+                .replace(/`(.*?)`/gim, '<code style="background:#f0f0f0;padding:2px 6px;border-radius:3px;">$1</code>')
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/\n/g, '<br>');
+            return `<p>${html}</p>`;
+        }
+
+        async function init() {
+            renderDayList();
+            
+            // 获取 URL 参数
+            const params = new URLSearchParams(window.location.search);
+            const date = params.get('date') || dailyFiles[0]?.date;
+            
+            // 高亮当前日期
+            document.querySelectorAll('.day-list a').forEach(a => {
+                a.classList.toggle('active', a.dataset.date === date);
+            });
+            
+            // 加载内容
+            const content = await loadDaily(date);
+            document.getElementById('content').innerHTML = `
+                <span class="date-badge">${date}</span>
+                ${content}
+            `;
+            
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleString('zh-CN');
+        }
+
+        init();
+    </script>
+</body>
+</html>
