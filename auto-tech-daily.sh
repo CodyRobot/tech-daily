@@ -1,5 +1,5 @@
 #!/bin/bash
-# 龙虾日报 - 每日科技动态自动生成
+# 龙虾日报 - 每日科技动态自动生成并推送 GitHub
 # 用法：./auto-tech-daily.sh [日期]
 
 set -e
@@ -8,19 +8,24 @@ REPO_DIR="/home/hsclaw/.openclaw/workspace/tech-daily"
 DAILY_DIR="$REPO_DIR/daily"
 DATE=${1:-$(date +%Y-%m-%d)}
 PROXY="http://127.0.0.1:8118"
+LOG_FILE="$HOME/.openclaw/logs/tech-daily-$DATE.log"
+
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
+}
 
 cd "$REPO_DIR"
 
 # 检查是否已存在
 if [ -f "$DAILY_DIR/$DATE.md" ]; then
-    echo "⚠️  $DATE 的日报已存在，跳过"
+    log "⚠️  $DATE 的日报已存在，跳过"
     exit 0
 fi
 
-echo "🦞 开始生成 $DATE 龙虾日报..."
+log "🦞 开始生成 $DATE 龙虾日报..."
 
 # 使用 Tavily 搜索今日科技新闻
-echo "📰 搜索科技新闻..."
+log "📰 搜索科技新闻..."
 
 NEWS=$(tavily_search -q "科技新闻 AI 大模型 GitHub $DATE" -c 15 --time_range day 2>/dev/null || echo "")
 
@@ -90,14 +95,14 @@ cat > "$DAILY_DIR/$DATE.md" << EOF
 *🦞 龙虾日报 · 整理自：量子位 | 机器之心 | 36 氪 | GitHub | 国际媒体*
 EOF
 
-echo "📝 已生成框架：$DAILY_DIR/$DATE.md"
+log "📝 已生成框架：$DAILY_DIR/$DATE.md"
 
 # 提交更改
 cd "$REPO_DIR"
 git add -A
 
 if git diff --cached --quiet; then
-    echo "✅ 无变化，跳过提交"
+    log "✅ 无变化，跳过提交"
     exit 0
 fi
 
@@ -105,7 +110,7 @@ git config user.email "cody@int64ago.com"
 git config user.name "CodyRobot"
 git commit -m "整理 $DATE 科技动态"
 
-echo "🚀 推送到 GitHub..."
+log "🚀 推送到 GitHub..."
 http_proxy=$PROXY https_proxy=$PROXY git push
 
-echo "✅ 完成！查看：https://codyrobot.github.io/tech-daily/?date=$DATE"
+log "✅ 完成！查看：https://codyrobot.github.io/tech-daily/?date=$DATE"
