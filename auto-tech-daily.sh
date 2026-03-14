@@ -138,15 +138,23 @@ def load_and_parse_tavily(filename, max_items=5):
     
     return "\n".join(items) if items else "- 暂无内容"
 
-def get_top_stories(rss_items, max=3):
-    """提取头条（前 3 条）"""
-    lines = rss_items.split('\n')
+def get_top_stories(rss_filepath, max=3):
+    """从 RSS digest 文件提取头条（前 3 条）"""
     stories = []
-    for line in lines[:max]:
-        match = re.search(r'\*\*(.+?)\*\*.*?\[(.+?)\]\((.+?)\)', line)
-        if match:
-            title, _, url = match.groups()
-            stories.append(f"- [{title.strip()}]({url})")
+    try:
+        with open(rss_filepath, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # 提取 Markdown 链接
+        pattern = r'### \d+\. \[(.+?)\]\((.+?)\)'
+        matches = re.findall(pattern, content)
+        
+        for m in matches[:max]:
+            title, url = m
+            stories.append(f"- [{title.strip()}]({url.strip()})")
+    except:
+        pass
+    
     return "\n".join(stories) if stories else "- 暂无内容"
 
 # 加载各板块内容
@@ -156,7 +164,7 @@ gh_content = load_and_parse_tavily('gh_news.json', 5)
 hw_content = load_and_parse_tavily('hw_news.json', 5)
 
 # 头条速览
-top_stories = get_top_stories(rss_content, 3)
+top_stories = get_top_stories(f"{tmp_dir}/rss_digest.md", 3)
 
 # 龙虾锐评
 comments = [
