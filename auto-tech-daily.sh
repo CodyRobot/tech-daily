@@ -27,16 +27,36 @@ fi
 
 log "🦞 开始生成 $DATE 龙虾日报..."
 
-# ========== 1. RSS 抓取中文 AI 圈 ==========
-log "📡 抓取 RSS（量子位、机器之心、36 氪）..."
+# ========== 1. RSS 抓取 ==========
+log "📡 抓取 RSS（完整版）..."
 
+# 中文 RSS
+CN_FEEDS=(
+    "https://www.qbitai.com/feed"                    # 量子位
+    "https://www.jiqizhixin.com/feed"                # 机器之心
+    "https://www.huxiu.com/rss/0.xml"                # 虎嗅
+    "https://www.tmtpost.com/feed"                   # 钛媒体
+    "https://www.solidot.org/index.rss"              # Solidot
+    "https://www.oschina.net/news/rss"               # 开源中国
+    "https://sspai.com/feed"                         # 少数派
+)
+
+# 英文 RSS
+EN_FEEDS=(
+    "https://techcrunch.com/feed/"                   # TechCrunch
+    "https://www.theverge.com/rss/index.xml"         # The Verge
+    "https://hnrss.org/frontpage"                    # Hacker News
+    "https://www.technologyreview.com/feed/"         # MIT Tech Review
+    "https://www.anthropic.com/rss.xml"              # Anthropic
+    "https://openai.com/blog/rss.xml"                # OpenAI
+    "https://blogs.nvidia.com/feed/"                 # NVIDIA
+)
+
+# 合并抓取
 python3 "$RSS_SCRIPT" fetch \
-    --feeds \
-        "https://www.qbitai.com/feed" \
-        "https://www.jiqizhixin.com/feed" \
-        "https://36kr.com/feed" \
+    --feeds "${CN_FEEDS[@]}" "${EN_FEEDS[@]}" \
     --hours 48 \
-    --limit 15 \
+    --limit 50 \
     --format markdown \
     > "$TMP_DIR/rss_digest.md" 2>/dev/null || echo "# RSS 抓取失败" > "$TMP_DIR/rss_digest.md"
 
@@ -94,9 +114,14 @@ date = os.environ.get('DATE', '2026-03-14')
 tmp_dir = os.environ.get('TMP_DIR', '/tmp/tech-daily')
 daily_dir = os.environ.get('DAILY_DIR', '/home/hsclaw/.openclaw/workspace/tech-daily/daily')
 
-def parse_rss_digest(filepath):
-    """解析 RSS digest Markdown"""
+def parse_rss_digest(filepath, category=None):
+    """解析 RSS digest Markdown，按来源分类"""
     items = []
+    cn_items = []  # 中文
+    en_items = []  # 英文
+    
+    cn_sources = ['量子位', '机器之心', '虎嗅', '钛媒体', 'Solidot', '开源中国', '少数派', '36 氪']
+    
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             content = f.read()
@@ -105,16 +130,32 @@ def parse_rss_digest(filepath):
         pattern = r'### \d+\. \[(.+?)\]\((.+?)\)\n\*\*(.+?)\*\* · (.+?)(?:\n\n> (.+?))?'
         matches = re.findall(pattern, content, re.DOTALL)
         
-        for m in matches[:10]:  # 最多 10 条
+        for m in matches[:50]:  # 最多 50 条
             title, url, source, time, summary = m
-            line = f"- **{title.strip()}** 「{source.strip()}」[{url}]"
+            title = title.strip()
+            source = source.strip()
+            
+            # 生成 Markdown 行
+            line = f"- **{title}** 「{source}」[{url}]"
             if summary and summary.strip():
                 line += f"\n  > {summary.strip()}"
-            items.append(line)
+            
+            # 分类
+            if any(cn in source for cn in cn_sources) or '.cn' in url or 'huxiu' in url or 'tmtpost' in url:
+                cn_items.append(line)
+            else:
+                en_items.append(line)
     except Exception as e:
         pass
     
-    return "\n".join(items) if items else "- 暂无内容"
+    if category == 'cn':
+        return "\n".join(cn_items[:20]) if cn_items else "- 暂无内容"
+    elif category == 'en':
+        return "\n".join(en_items[:15]) if en_items else "- 暂无内容"
+    else:
+        # 混合返回
+        all_items = cn_items[:15] + en_items[:10]
+        return "\n".join(all_items) if all_items else "- 暂无内容"
 
 def load_and_parse_tavily(filename, max_items=5):
     """加载并解析 Tavily JSON"""
@@ -158,13 +199,16 @@ def get_top_stories(rss_filepath, max=3):
     return "\n".join(stories) if stories else "- 暂无内容"
 
 # 加载各板块内容
-rss_content = parse_rss_digest(f"{tmp_dir}/rss_digest.md")
-intl_content = load_and_parse_tavily('intl_news.json', 5)
+cn_content = parse_rss_digest(f"{tmp_dir}/rss_digest.md", category='cn')
+en_content = parse_rss_digest(f"{tmp_dir}/rss_digest.md", category='en')
 gh_content = load_and_parse_tavily('gh_news.json', 5)
 hw_content = load_and_parse_tavily('hw_news.json', 5)
 
-# 头条速览
+# 头条速览（从中文 RSS 提取前 3 条）
 top_stories = get_top_stories(f"{tmp_dir}/rss_digest.md", 3)
+
+# 国际动态 = 英文 RSS + Tavily 国际新闻
+intl_content = en_content
 
 # 龙虾锐评
 comments = [
@@ -205,13 +249,15 @@ content = f"""# 📰 每日科技日报 · {chinese_date}
 
 ## 🇨🇳 中文 AI 圈
 
-### 量子位 | 机器之心 | 36 氪
+### 量子位 | 机器之心 | 虎嗅 | 钛媒体 | Solidot
 
-{rss_content}
+{cn_content}
 
 ---
 
 ## 🌍 国际动态
+
+### TechCrunch | The Verge | MIT Tech Review | Hacker News
 
 {intl_content}
 
@@ -237,7 +283,7 @@ content = f"""# 📰 每日科技日报 · {chinese_date}
 
 ---
 
-*🦞 龙虾日报 · 整理自：量子位 | 机器之心 | 36 氪 | GitHub | 国际媒体*
+*🦞 龙虾日报 · 整理自：量子位 | 机器之心 | 虎嗅 | 钛媒体 | Solidot | TechCrunch | The Verge | MIT Tech Review | Hacker News | Anthropic | OpenAI | NVIDIA*
 """
 
 output_file = f"{daily_dir}/{date}.md"
